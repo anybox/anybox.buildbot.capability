@@ -3,6 +3,11 @@ from setuptools import setup, find_packages
 version = '0.1'
 pkg_name = "anybox.buildbot.capability"
 
+
+def steps_ep(step_names):
+    return ["%s = anybox.buildbot.capability.steps:%s" % (name, name)
+            for name in step_names]
+
 setup(
     name=pkg_name,
     version=version,
@@ -16,7 +21,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     namespace_packages=['anybox', 'anybox.buildbot'],
-    install_requires=['buildbot >= 0.9.0b1',
+    install_requires=['buildbot',
                       ],
     tests_require=['nose'],
     test_suite='nose.collector',
@@ -30,7 +35,7 @@ setup(
         'License :: OSI Approved :: GNU General Public License v2 '
         'or later (GPLv2+)',
     ],
-    entry_points="""
-    [console_scripts]
-    """
+    entry_points={
+        'buildbot.steps': steps_ep(('SetCapabilityProperties', ))
+    }
 )
