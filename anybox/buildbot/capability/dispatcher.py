@@ -7,15 +7,17 @@ from buildbot.plugins import util
 
 from .version import Version
 from .version import NOT_USED
-
+from .steps import SetCapabilityProperties
+from .constants import CAPABILITY_PROP_FMT
 
 RE_PROP_CAP_OPT = re.compile(r'cap\((\w*)\)')
+Interpolate = util.Interpolate
 
 
 def does_meet_requirements(caps, requirements):
     """True if a worker capabilities fulfills all requirements.
 
-    :param caps: the capabilities to check (a :class:`dict` whose keys
+    :param caps: the capabilities to check, a :class:`dict` whose keys
                  are capability names, and values an iterable of version
                  options
     :param requirements: a :class:`VersionFilter` instance
@@ -39,11 +41,107 @@ class BuilderDispatcher(object):
 
       - filtering by capability
       - creation of variants according to capabilities
+      - setting properties in the build derived from capability version and
+        options
+
+    The ``capabilities`` attribute describes the available capabilities,
+    and governs how they will interact with the build. Here's an example::
+
+      dict(python=dict(version_prop='py_version',
+                       abbrev='py'),
+           postgresql=dict(version_prop='pg_version',
+                           abbrev='pg',
+                           environ={'PGPORT': '%(cap(port):-)s',
+                                    'PGHOST': '%(cap(host):-)s',
+                                    'LD_LIBRARY_PATH': '%(cap(lib):-)s',
+                                    'PATH': '%(cap(bin):-)s',
+                                    'PGCLUSTER': '%(prop:pg_version:-)s/main',
+                                    },
+                           ))
 
     """
     def __init__(self, workers, capabilities):
         self.all_workers = workers
         self.capabilities = capabilities
+
+    def set_properties_make_environ(self, factory, cap_names):
+        """Add property setting steps to factory and return environment vars.
+
+        :returns: a :class:`dict` suitable to pass as ``env`` in subsequent
+                  :class:`ShellCommand` steps, using :class:`Interpolate`
+        :param cap_names: iterable of capability names to consider
+        :param factory: a :class:`BuildFactory` instance.
+
+        *Example usage*: assume the ``self.capability`` :class:`dict`
+                         contains this::
+
+           'capname' : dict(version_prop='the_cap_version',
+                             environ={'CAPABIN': '%(cap(bin))s/prog'})
+
+        For a build occuring on a worker with the ``capname`` capability, in
+        version ``x.y`` and options ``bin=/usr/local/capname/bin``, one will
+        get
+
+        * a build property ``cap_capname_bin``, with value
+          ``/usr/local/capname/bin``, available to the steps that have been
+          added after the call to this method,
+        * a return value of::
+
+            {'CAPABIN': Interpolate('%(prop:cap_capname_bin)s/prog')}
+
+          meaning at at build time, if used to construct the environment in a
+          build step, it will evaluate as::
+
+            ``CAPABIN=/usr/local/capname/bin/prog``
+
+        This demonstrates in particular how values of the ``environ`` subdicts
+        are meant for :class:`Interpolate`, with substitution of
+        ``cap(<option>)`` by
+        the property that will hold the value of this capability option.
+        Apart from this substitution, the full expressivity of
+        :class:`Interpolate` applies.
+
+        As a special case, the ``PATH`` environment variable is always an
+        insertion at the beginning of the list.
+
+        The limitation of considered capabilities by means of the ``cap_names``
+        parameter avoids to spawn  absurd build steps that aren't needed for
+        this factory, or even can't actually run, as one would get if we used
+        all registered capabilities.
+
+        TODO: adapt this explanations for this standalone version of
+        capability system:
+
+        The ``capability`` dict property value is expected to be set by the
+        :class:`Worker` instantiation. The build steps set by this method
+        will extract them as regular properties, which the returned environ
+        dict uses, and can also be used freely in steps added after this point.
+        """
+        capability_env = {}
+
+        for cap_name in cap_names:
+            capability = self.capabilities.get(cap_name)
+            if capability is None:
+                continue
+            factory.addStep(SetCapabilityProperties(
+                cap_name,
+                description=["Setting", cap_name, "properties"],
+                descriptionDone=["Set", cap_name, "properties"],
+                name="props_" + cap_name,
+                capability_version_prop=capability.get('version_prop'),
+            ))
+            to_env = capability.get('environ')
+            if not to_env:
+                continue
+            for env_key, interpolation in to_env.items():
+                def replace(m):
+                    return CAPABILITY_PROP_FMT % (cap_name, m.group(1))
+                var = Interpolate(RE_PROP_CAP_OPT.sub(replace, interpolation))
+                if env_key == 'PATH':
+                    var = [var, '${PATH}']
+                capability_env[env_key] = var
+
+        return capability_env
 
     def make_builders(self, name, factory, build_for=None, build_requires=(),
                       **kw):
