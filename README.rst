@@ -1,8 +1,8 @@
 A static capability system for buildbot
 =======================================
 
-This package allows to declare that workers have capabilities, and
-configure ``BuilderConfig`` accordingly.
+This package for buildbot >= 0.9 allows to declare that workers have
+capabilities, and produce ``BuilderConfig`` instances accordingly.
 
 - capabilities have a name (e.g. 'postgresql'), an optional version
   (9.5) and optional additional parameters (such as port=5433)
