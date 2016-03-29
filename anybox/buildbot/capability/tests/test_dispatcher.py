@@ -34,12 +34,23 @@ class FakeWorker(object):
             self.properties.update(props)
 
 
-class TestDispatcher(unittest.TestCase):
+class DispatcherTestCase(unittest.TestCase):
 
     def setUp(self):
         self.factory = util.BuildFactory()
         self.make_workers()
         self.make_dispatcher()
+
+    def make_dispatcher(self):
+        self.dispatcher = BuilderDispatcher(self.workers, CAPABILITIES)
+
+    def dispatch(self, **kw):
+        return dict((b.name, b)
+                    for b in self.dispatcher.make_builders(
+                            'bldr', self.factory, **kw))
+
+
+class TestDispatcherBuildFor(DispatcherTestCase):
 
     def make_workers(self):
         self.workers = [
@@ -57,14 +68,6 @@ class TestDispatcher(unittest.TestCase):
                             'postgresql': {'8.3': {}}}
                        )),
         ]
-
-    def make_dispatcher(self):
-        self.dispatcher = BuilderDispatcher(self.workers, CAPABILITIES)
-
-    def dispatch(self, **kw):
-        return dict((b.name, b)
-                    for b in self.dispatcher.make_builders(
-                            'bldr', self.factory, **kw))
 
     def test_build_for_greater(self):
         builders = self.dispatch(
@@ -179,3 +182,74 @@ class TestDispatcher(unittest.TestCase):
                            VersionFilter('python', ('==', Version(2, 7)))),
                            ),
             {})
+
+
+class TestDispatcherBuildRequires(DispatcherTestCase):
+
+    def make_workers(self):
+        self.workers = [
+            FakeWorker('privcode', props=dict(
+                capability={'private-code-access': {None: {}},
+                            'postgresql': {'8.4': {},
+                                           '9.1-devel': {'port': '5433'}},
+                            })),
+            FakeWorker('privcode-84', props=dict(
+                capability={'private-code-access': {None: {}},
+                            'postgresql': {'8.4': {}}
+                            })),
+            FakeWorker('privcode-91', props=dict(
+                capability={'private-code-access': {None: {}},
+                            'postgresql': {'9.1-devel': {}}
+                            })),
+            FakeWorker('pg90-91', props=dict(
+                capability={'postgresql': {'9.0': {'port': '5434'},
+                                           '9.1-devel': {'port': '5433'}},
+                            })),
+            FakeWorker('rabb284', props=dict(
+                capability={'rabbitmq': {'2.8.4': {}},
+                            'postgresql': {'9.0': {'port': 5434}}
+                            })),
+            FakeWorker('rabb18', props=dict(
+                capability={'rabbitmq': {'1.8': {}},
+                            'postgresql': {'9.0': {'port': 5434}}
+                            })),
+        ]
+
+    def test_build_requires_for_all_versions(self):
+        builders = self.dispatch(
+            build_requires=[VersionFilter('private-code-access', ())],
+            build_for=[VersionFilter('postgresql', ())],
+        )
+        self.assertEqual(set(builders),
+                         set(('bldr-pg8.4',
+                              'bldr-pg9.1-devel',)))
+        self.assertEqual(builders['bldr-pg8.4'].workernames,
+                         ['privcode', 'privcode-84'])
+        self.assertEqual(builders['bldr-pg9.1-devel'].workernames,
+                         ['privcode', 'privcode-91'])
+
+    def test_build_requires_for_restrictive(self):
+        builders = self.dispatch(
+            build_requires=[VersionFilter('private-code-access', ())],
+            build_for=[VersionFilter('postgresql', ('>', Version(9, 0)))],
+        )
+        self.assertEqual(builders.keys(), ['bldr-pg9.1-devel'])
+        self.assertEqual(builders['bldr-pg9.1-devel'].workernames,
+                         ['privcode', 'privcode-91'])
+
+    def test_build_requires_version(self):
+        rabbit_vf = VersionFilter('rabbitmq', ('>=', Version(2, 0)))
+        builders = self.dispatch(
+            build_requires=[rabbit_vf],
+            build_for=[VersionFilter('postgresql', ('==', Version(9, 0)))],
+        )
+        self.assertEqual(builders.keys(), ['bldr-pg9.0'])
+        builder = builders['bldr-pg9.0']
+        self.assertEqual(builder.workernames, ['rabb284'])
+
+        build_requires = builder.properties['build_requires']
+        self.assertEqual(len(build_requires), 1)
+        # these tests are written to be independent of actual string
+        # representation, hence we reparse from here
+        self.assertEqual(VersionFilter.parse(build_requires.pop()),
+                         rabbit_vf)
