@@ -1,13 +1,14 @@
 import unittest
 from ..dispatcher import BuilderDispatcher
 from ..version import Version, VersionFilter
+from ..steps import SetCapabilityProperties
 
 from buildbot.plugins import util
 
 CAPABILITIES = dict(
     python=dict(version_prop='py_version',
                 abbrev='py',
-                environ={}),
+                environ={'PYTHONBIN': '%(cap(bin):-python)s'}),
     postgresql=dict(version_prop='pg_version',
                     abbrev='pg',
                     environ={'PGPORT': '%(cap(port):-)s',
@@ -273,3 +274,44 @@ class TestDispatcherBuildRequires(DispatcherTestCase):
         # is not required
         self.assertEqual(builders['bldr-pg9.1-devel'].workernames,
                          ['privcode-91', 'pg90-91'])
+
+
+class TestDispatcherEnviron(DispatcherTestCase):
+
+    def make_workers(self):
+        self.workers = [
+            FakeWorker('two-pg-one-py', props=dict(
+                capability={'selenium': {None: {}},  # one not having environ
+                            'python': {'2.6': {'bin': 'python2.6'}},
+                            'postgresql': {'9.1': {'port': '5432'},
+                                           '9.2': {'port': '5433'}},
+                            })),
+                        ]
+
+    def test_capability_env(self):
+        factory = util.BuildFactory()
+        env = self.dispatcher.set_properties_make_environ(
+            factory, ('python', 'postgresql', 'selenium'))
+
+        self.assertEqual(env['PGPORT'],
+                         util.Interpolate('%(prop:cap_postgresql_port:-)s'))
+        self.assertEqual(env['PYTHONBIN'],
+                         util.Interpolate('%(prop:cap_python_bin:-python)s'))
+        self.assertEqual(env['PATH'],
+                         [util.Interpolate('%(prop:cap_postgresql_bin:-)s'),
+                          '${PATH}'])
+
+        steps = dict((s.kwargs['name'], s) for s in factory.steps
+                     if s.factory is SetCapabilityProperties)
+
+        self.assertTrue('props_python' in steps)
+        prop_step = steps['props_python']
+        self.assertEquals(prop_step.args, ('python',))
+        self.assertEquals(prop_step.kwargs['capability_version_prop'],
+                          'py_version')
+
+        self.assertTrue('props_postgresql' in steps)
+        prop_step = steps['props_postgresql']
+        self.assertEquals(prop_step.args, ('postgresql',))
+        self.assertEquals(prop_step.kwargs['capability_version_prop'],
+                          'pg_version')
