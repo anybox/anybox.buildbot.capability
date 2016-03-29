@@ -253,3 +253,23 @@ class TestDispatcherBuildRequires(DispatcherTestCase):
         # representation, hence we reparse from here
         self.assertEqual(VersionFilter.parse(build_requires.pop()),
                          rabbit_vf)
+
+    def test_build_requires_2(self):
+        rabbit_vf = VersionFilter('rabbitmq', ('==', Version(1, 8)))
+        builders = self.dispatch(
+            build_requires=[rabbit_vf],
+            build_for=[VersionFilter('postgresql', ('==', Version(9, 0)))],
+        )
+        self.assertEqual(builders.keys(), ['bldr-pg9.0'])
+        self.assertEqual(builders['bldr-pg9.0'].workernames, ['rabb18'])
+
+    def test_build_requires_only_if(self):
+        self.workers[0].properties['build-only-if-requires'] = 'private-code-access'
+        builders = self.dispatch(
+            build_for=[VersionFilter('postgresql', ('>', Version(9, 0)))],
+        )
+        self.assertEqual(builders.keys(), ['bldr-pg9.1-devel'])
+        # does not run on 'privcode' worker, since the 'private-code-access'
+        # is not required
+        self.assertEqual(builders['bldr-pg9.1-devel'].workernames,
+                         ['privcode-91', 'pg90-91'])
