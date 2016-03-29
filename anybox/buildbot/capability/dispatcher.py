@@ -135,7 +135,8 @@ class BuilderDispatcher(object):
                 continue
             for env_key, interpolation in to_env.items():
                 def replace(m):
-                    return CAPABILITY_PROP_FMT % (cap_name, m.group(1))
+                    return 'prop:' + CAPABILITY_PROP_FMT % (
+                        cap_name, m.group(1))
                 var = Interpolate(RE_PROP_CAP_OPT.sub(replace, interpolation))
                 if env_key == 'PATH':
                     var = [var, '${PATH}']
