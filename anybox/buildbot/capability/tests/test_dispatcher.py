@@ -2,7 +2,6 @@ import unittest
 from ..dispatcher import BuilderDispatcher
 from ..version import Version, VersionFilter
 
-from collections import OrderedDict
 from buildbot.plugins import util
 
 CAPABILITIES = dict(
@@ -69,17 +68,15 @@ class TestDispatcher(unittest.TestCase):
 
     def test_build_for_greater(self):
         builders = self.dispatch(
-            build_for=dict(
-                postgresql=VersionFilter('postgresql', ('>', Version(9, 0)))))
+            build_for=[VersionFilter('postgresql', ('>', Version(9, 0)))])
         self.assertEqual(builders.keys(), ['bldr-pg9.1-devel'])
 
     def test_build_for_range(self):
         builders = self.dispatch(
-            build_for=dict(
-                postgresql=VersionFilter('postgresql',
-                                         ('AND',
-                                          ('>=', Version(8, 4)),
-                                          ('<=', Version(9, 1))))))
+            build_for=[VersionFilter('postgresql',
+                                     ('AND',
+                                      ('>=', Version(8, 4)),
+                                      ('<=', Version(9, 1))))])
         self.assertEqual(set(builders),
                          set(('bldr-pg8.4',
                               'bldr-pg9.0',
@@ -87,11 +84,10 @@ class TestDispatcher(unittest.TestCase):
 
     def test_build_for_or_statement(self):
         builders = self.dispatch(
-            build_for=dict(
-                postgresql=VersionFilter('postgresql',
-                                         ('OR',
-                                          ('>', Version(9, 0)),
-                                          ('==', Version(8, 4))))))
+            build_for=[VersionFilter('postgresql',
+                                     ('OR',
+                                      ('>', Version(9, 0)),
+                                      ('==', Version(8, 4))))])
         self.assertEqual(set(builders),
                          set(('bldr-pg8.4',
                               'bldr-pg9.1-devel')))
@@ -99,13 +95,12 @@ class TestDispatcher(unittest.TestCase):
     def test_build_for2cap(self):
         """build_for dispatching for two capabilities."""
         builders = self.dispatch(
-            build_for=OrderedDict(
-                [('postgresql', VersionFilter('postgresql',
-                                              ('AND',
-                                               ('>=', Version(8, 4)),
-                                               ('<=', Version(9, 1))))),
-                 ('python', VersionFilter('python', ('>=', Version(2, 6)))),
-                 ]))
+            build_for=(VersionFilter('postgresql',
+                                     ('AND',
+                                      ('>=', Version(8, 4)),
+                                      ('<=', Version(9, 1)))),
+                       VersionFilter('python', ('>=', Version(2, 6))),
+                       ))
         self.assertEqual(set(builders),
                          set(('bldr-pg9.1-devel-py2.6',
                               'bldr-pg9.0-py2.6')))
@@ -113,13 +108,12 @@ class TestDispatcher(unittest.TestCase):
     def test_build_for2cap_more(self):
         """build_for dispatching for two capabilities, with more combinations"""
         builders = self.dispatch(
-            build_for=OrderedDict(
-                [('postgresql', VersionFilter('postgresql',
-                                              ('AND',
-                                               ('>=', Version(8, 4)),
-                                               ('<=', Version(9, 1))))),
-                 ('python', VersionFilter('python', ())),
-                 ]))
+            build_for=(VersionFilter('postgresql',
+                                     ('AND',
+                                      ('>=', Version(8, 4)),
+                                      ('<=', Version(9, 1)))),
+                       VersionFilter('python', ()),
+                       ))
         self.assertEqual(set(builders),
                          set(('bldr-pg9.1-devel-py2.6',
                               'bldr-pg8.4-py2.4',
@@ -137,13 +131,12 @@ class TestDispatcher(unittest.TestCase):
     def test_build_for2cap_or(self):
         """build_for dispatching for two capabilities with OR, one solution"""
         builders = self.dispatch(
-            build_for=OrderedDict(
-                [('postgresql', VersionFilter('postgresql',
-                                              ('OR',
-                                               ('>', Version(9, 0)),
-                                               ('==', Version(8, 4))))),
-                 ('python', VersionFilter('python', ('<', Version(2, 6)))),
-                 ]))
+            build_for=(VersionFilter('postgresql',
+                                     ('OR',
+                                      ('>', Version(9, 0)),
+                                      ('==', Version(8, 4)))),
+                       VersionFilter('python', ('<', Version(2, 6))),
+                       ))
         self.assertEqual(builders.keys(), ['bldr-pg8.4-py2.4'])
 
     def test_build_for_2cap_2(self):
@@ -157,13 +150,12 @@ class TestDispatcher(unittest.TestCase):
         self.make_dispatcher()
 
         builders = self.dispatch(
-            build_for=OrderedDict(
-                [('postgresql', VersionFilter('postgresql',
-                                              ('AND',
-                                               ('>=', Version(8, 4)),
-                                               ('<=', Version(9, 1))))),
-                 ('python', VersionFilter('python', ('>=', Version(2, 6)))),
-                 ]))
+            build_for=(VersionFilter('postgresql',
+                                     ('AND',
+                                      ('>=', Version(8, 4)),
+                                      ('<=', Version(9, 1)))),
+                       VersionFilter('python', ('>=', Version(2, 6))),
+                       ))
 
         self.assertEqual(set(builders),
                          set(('bldr-pg9.0-py2.6',
@@ -173,20 +165,17 @@ class TestDispatcher(unittest.TestCase):
 
         self.assertEqual(
             self.dispatch(
-                build_for=OrderedDict(
-                    [('postgresql', VersionFilter('postgresql',
-                                                  ('OR',
-                                                   ('==', Version(8, 4)),
-                                                   ('>', Version(9, 0))))),
-                     ('python', VersionFilter('python', ('<', Version(2, 6)))),
-                     ])),
+                build_for=(VersionFilter('postgresql',
+                                         ('OR',
+                                          ('==', Version(8, 4)),
+                                          ('>', Version(9, 0)))),
+                           VersionFilter('python', ('<', Version(2, 6))),
+                           )),
             {})
 
         self.assertEqual(
             self.dispatch(
-                build_for=OrderedDict(
-                    [('postgresql', VersionFilter('postgresql',
-                                                  ('>', Version(9, 0)))),
-                     ('python', VersionFilter('python', ('==', Version(2, 7)))),
-                     ])),
+                build_for=(VersionFilter('postgresql', ('>', Version(9, 0))),
+                           VersionFilter('python', ('==', Version(2, 7)))),
+                           ),
             {})

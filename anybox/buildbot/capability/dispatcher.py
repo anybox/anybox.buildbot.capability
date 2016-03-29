@@ -145,7 +145,7 @@ class BuilderDispatcher(object):
 
         return capability_env
 
-    def make_builders(self, name, factory, build_for=None, build_requires=(),
+    def make_builders(self, name, factory, build_for=(), build_requires=(),
                       **kw):
         """Produce the builder configurations for the given build factory.
 
@@ -154,8 +154,9 @@ class BuilderDispatcher(object):
         :param build_requires: list of capability requirements that the
                                worker must match to run a builder
                                from the factory.
-        :param build_for: a dict whose keys are capability names and values are
-                          corresponding :class:`VersionFilter` instances.
+        :param build_for: an iterable of `VersionFilter` instances.
+                          They will be used in order to create combinations
+                          from the matches they find in :attr:`all_workers`
         :param kw: all remaining keyword arguments are forwarded to
                    :class:`BuilderConfig` instantiation.
         :returns: a list of :class:`BuilderConfig` instances
@@ -173,9 +174,9 @@ class BuilderDispatcher(object):
                 build_requires=[str(req) for req in build_requires])
 
         preconfs = [base_conf]
-        for cap_name, cap_vf in build_for.items():
+        for version_filter in build_for:
             preconfs = self.dispatch_builders_by_capability(
-                preconfs, cap_name, cap_vf)
+                preconfs, version_filter)
 
         builders = []
         for conf in preconfs:
@@ -183,7 +184,7 @@ class BuilderDispatcher(object):
             builders.append(util.BuilderConfig(**conf))
         return builders
 
-    def dispatch_builders_by_capability(self, builders, cap, cap_vf):
+    def dispatch_builders_by_capability(self, builders, cap_vf):
         """Take a list of builders parameters and redispatch by capability.
 
         :param builders: iterable of dicts with keywords arguments to create
@@ -194,7 +195,6 @@ class BuilderDispatcher(object):
                           They need to have the ``workernames`` and
                           ``properties`` keys.
 
-        :param cap: capability name
         :param cap_vf: capability version filter controlling the dispatching.
                        ``None`` meaning that the capability is ignored
         :param prop: the capability controlling property
@@ -211,9 +211,10 @@ class BuilderDispatcher(object):
         get registered.
         """
         res = []
+        cap = cap_vf.cap
         capdef = self.capabilities[cap]
         prop = capdef['version_prop']
-        if cap_vf is not None and cap_vf.criteria == (NOT_USED, ):
+        if cap_vf.criteria == (NOT_USED, ):
             # This is a marker to explicitely say that the capability does not
             # matter. For instance, in the case of PostgreSQL, this helps
             # spawning builds that ignore it entirely
