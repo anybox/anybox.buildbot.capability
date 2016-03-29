@@ -1,6 +1,3 @@
-NOT_USED = object()
-
-
 class VersionParseError(ValueError):
     """Dedicated exception for version and version filter parsing errors.
 
@@ -165,13 +162,6 @@ class VersionFilter(object):
       ... except VersionParseError, exc: exc.args[0]
       '8.4'
 
-    special case where we want to indicate explicitely that we
-    actually won't be using the given capability::
-
-      >>> vf = VersionFilter.parse('postgresql not-used')
-      >>> vf.criteria == (NOT_USED, )
-      True
-
     On a version filter, str() gives back something that's meant for parse():
 
       >>> str(VersionFilter.parse('rabbitmq'))
@@ -180,8 +170,6 @@ class VersionFilter(object):
       'pg >= 9.1 AND < 9.3'
       >>> str(VersionFilter.parse('pg >= 9.2-devel OR == 8.4-special'))
       'pg >= 9.2-devel OR == 8.4-special'
-      >>> str(VersionFilter.parse('postgresql not-used'))
-      'postgresql not-used'
     """
 
     def __init__(self, capability, criteria):
@@ -206,9 +194,6 @@ class VersionFilter(object):
 
     def _crit_str(self, crit):
         op = crit[0]
-        if op is NOT_USED:
-            return 'not-used'
-
         if op.upper() in ('AND', 'OR'):
             return ' '.join((self._crit_str(crit[1]),
                              op.upper(),
@@ -223,9 +208,6 @@ class VersionFilter(object):
 
     @classmethod
     def boolean_parse(cls, reqline):
-        if reqline == 'not-used':
-            return (NOT_USED, )
-
         ors = reqline.split('OR', 1)
         if len(ors) == 2:
             return ('OR', cls.boolean_parse(ors[0].strip()),

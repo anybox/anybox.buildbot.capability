@@ -6,7 +6,6 @@ from copy import deepcopy
 from buildbot.plugins import util
 
 from .version import Version
-from .version import NOT_USED
 from .steps import SetCapabilityProperties
 from .constants import CAPABILITY_PROP_FMT
 
@@ -214,14 +213,6 @@ class BuilderDispatcher(object):
         cap = cap_vf.cap
         capdef = self.capabilities[cap]
         prop = capdef['version_prop']
-        if cap_vf.criteria == (NOT_USED, ):
-            # This is a marker to explicitely say that the capability does not
-            # matter. For instance, in the case of PostgreSQL, this helps
-            # spawning builds that ignore it entirely
-            for builder in builders:
-                builder.setdefault('properties', {})[prop] = 'not-used'
-            return builders
-
         abbrev = capdef.get('abbrev', cap)
         for builder in builders:
             for cap_version, workernames in self.split_workers_by_capability(
