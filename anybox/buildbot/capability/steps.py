@@ -51,7 +51,7 @@ class SetCapabilityProperties(DescriptionBuildStep):
                  **kw):
         """
 
-        capability_prop is the name of the complex slave-level property
+        capability_prop is the name of the complex worker-level property
         entirely describing the capabilities
         capability_version_prop is the name of the property (builder-level)
         giving the version capability to take into account.
@@ -89,12 +89,12 @@ class SetCapabilityProperties(DescriptionBuildStep):
 
         if options is None:
             # could not get options by a capacity version from props
-            # works if there's only one capacity version on this buildslave
+            # works if there's only one capacity version on this worker
             # TODO replace assert() by a FAILURE status with message
             assert len(cap_details) == 1, (
-                "No version of capability %r in properties, but"
-                " slave %r has several applicable versions of it." % (
-                    self.capability_name, self.getProperty('slavename')))
+                "No version of capability %r in properties, but "
+                "worker %r has several applicable versions of it." % (
+                    self.capability_name, self.getProperty('workername')))
             options = cap_details.values()[0]
 
         for k, v in options.items():
