@@ -164,10 +164,7 @@ class BuilderDispatcher(object):
             # buildbot does not allow builder configs with empty list of workers
             return ()
 
-        base_conf = dict(name=name,
-                         factory=factory,
-                         workernames=list(workernames))
-        base_conf.update(kw)
+        base_conf = dict(name=name, workernames=list(workernames))
 
         # forward requirement in the build properties
         if build_requires:
@@ -179,7 +176,11 @@ class BuilderDispatcher(object):
             preconfs = self.dispatch_builders_by_capability(
                 preconfs, cap_name, cap_vf)
 
-        return [util.BuilderConfig(**conf) for conf in preconfs]
+        builders = []
+        for conf in preconfs:
+            conf.update(factory=factory, **kw)
+            builders.append(util.BuilderConfig(**conf))
+        return builders
 
     def dispatch_builders_by_capability(self, builders, cap, cap_vf):
         """Take a list of builders parameters and redispatch by capability.
