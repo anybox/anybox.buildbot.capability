@@ -61,7 +61,8 @@ class BuilderDispatcher(object):
 
     """
     def __init__(self, workers, capabilities):
-        self.all_workers = workers
+        self.all_workers = dict((worker.workername, worker)
+                                for worker in workers)
         self.capabilities = capabilities
 
     def set_properties_make_environ(self, factory, cap_names):

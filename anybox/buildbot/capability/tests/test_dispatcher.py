@@ -29,7 +29,7 @@ class FakeProperties(dict):
 class FakeWorker(object):
 
     def __init__(self, name, props=None):
-        self.name = name
+        self.workername = name
         self.properties = FakeProperties()
         if props is not None:
             self.properties.update(props)
@@ -39,21 +39,27 @@ class TestDispatcher(unittest.TestCase):
 
     def setUp(self):
         self.factory = util.BuildFactory()
-        self.workers = {
-            'w84': FakeWorker('w84', props=dict(
+        self.make_workers()
+        self.make_dispatcher()
+
+    def make_workers(self):
+        self.workers = [
+            FakeWorker('w84', props=dict(
                 capability={'python': {'2.4': {}},
                             'postgresql': {'8.4': {}}}
-               )),
-            'w90-91': FakeWorker('w90-91', props=dict(
+                       )),
+            FakeWorker('w90-91', props=dict(
                 capability={'python': {'2.6': {}},
                             'postgresql': {'9.0': {'port': '5434'},
                                            '9.1-devel': {'port': '5433'}}}
-            )),
-            'w83': FakeWorker('w83', props=dict(
+                       )),
+            FakeWorker('w83', props=dict(
                 capability={'python': {'2.7': {}},
                             'postgresql': {'8.3': {}}}
-            )),
-        }
+                       )),
+        ]
+
+    def make_dispatcher(self):
         self.dispatcher = BuilderDispatcher(self.workers, CAPABILITIES)
 
     def dispatch(self, **kw):
@@ -142,12 +148,14 @@ class TestDispatcher(unittest.TestCase):
 
     def test_build_for_2cap_2(self):
         """build-for dispatching for two capabilities, another conf"""
-        del self.workers['w84']
-        self.workers['w90'] = FakeWorker(
-            'w90',
-            props=dict(capability={'python': {'2.7': {}},
-                                   'postgresql': {'9.0': {}},
-                                   }))
+        del self.workers[0]
+        self.workers.append(
+            FakeWorker('w90',
+                       props=dict(capability={'python': {'2.7': {}},
+                                              'postgresql': {'9.0': {}},
+                                              })))
+        self.make_dispatcher()
+
         builders = self.dispatch(
             build_for=OrderedDict(
                 [('postgresql', VersionFilter('postgresql',
