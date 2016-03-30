@@ -39,6 +39,13 @@ class Version(object):
     True
     >>> Version(9, 1, suffix='devel') < Version(9, 1)
     True
+
+    ``suffix`` is the only accepted keyword argument (the use of variable
+    keyword arguments is forced upon us by the variable number of positional
+    ones)::
+
+    >>> try: v = Version(9, 1, prefix='devel')
+    ... except ValueError: pass
     """
 
     def __init__(self, *version, **kw):
@@ -102,6 +109,13 @@ class Version(object):
         Version(9, 1)
         >>> Version.parse(str(Version(1, 2, suffix='alpha')))
         Version(1, 2, suffix='alpha')
+
+        The only recognized suffix separator is the dash (that may change
+        in the future). Having several of them is an error::
+
+        >>> try: vf = Version.parse('8.4-devel-wild')
+        ... except VersionParseError, exc: exc.args[0]
+        '8.4-devel-wild'
         """
         if as_string is None:
             return None
@@ -162,7 +176,7 @@ class VersionFilter(object):
       ... except VersionParseError, exc: exc.args[0]
       '8.4'
 
-    On a version filter, str() gives back something that's meant for parse():
+    On a version filter, ``str()`` gives back something meant for parse()::
 
       >>> str(VersionFilter.parse('rabbitmq'))
       'rabbitmq'
@@ -170,6 +184,11 @@ class VersionFilter(object):
       'pg >= 9.1 AND < 9.3'
       >>> str(VersionFilter.parse('pg >= 9.2-devel OR == 8.4-special'))
       'pg >= 9.2-devel OR == 8.4-special'
+
+    while ``repr()`` follows the general convention to be Python code::
+
+      >>> repr(VersionFilter.parse('pg >= 9 < 9.3'))
+      "VersionFilter('pg', ('AND', ('>=', Version(9)), ('<', Version(9, 3))))"
     """
 
     def __init__(self, capability, criteria):
