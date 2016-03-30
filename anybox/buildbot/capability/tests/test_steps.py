@@ -25,12 +25,40 @@ class TestSetCapabilityProperties(unittest.TestCase):
             self.step_status = status
         self.step.finished = finished
 
+    def test_description(self):
+        step = SetCapabilityProperties('somecap',
+                                       description='abc',
+                                       descriptionDone=u'def',
+                                       descriptionSuffix='ghi')
+        self.assertEqual(step.description, ['abc'])
+        self.assertEqual(step.descriptionDone, [u'def'])
+        self.assertEqual(step.descriptionSuffix, ['ghi'])
+
     def test_one_avail_version(self):
         step = self.step
         step.setProperty('capability',
                          dict(zecap={'1.0': dict(bin='/usr/bin/zecap'),
                                      },
                               ), 'BuildSlave')
+        step.start()
+        self.assertEqual(self.step_status, SUCCESS)
+        self.assertEqual(
+            step.getProperty(CAPABILITY_PROP_FMT % ('zecap', 'bin')),
+            '/usr/bin/zecap')
+
+    def test_no_details(self):
+        step = self.step
+        step.setProperty('capability', dict(zecap={}), 'BuildSlave')
+        step.start()
+        self.assertEqual(self.step_status, SUCCESS)
+
+    def test_requirement_other_cap(self):
+        step = self.step
+        step.setProperty('capability',
+                         dict(zecap={'1.0': dict(bin='/usr/bin/zecap')},
+                              othercap={'1.0': dict(bin='other')}),
+                         'BuildSlave')
+        step.setProperty('build_requires', ["othercap < 2"])
         step.start()
         self.assertEqual(self.step_status, SUCCESS)
         self.assertEqual(

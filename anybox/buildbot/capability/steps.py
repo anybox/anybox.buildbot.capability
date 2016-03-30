@@ -23,15 +23,15 @@ class DescriptionBuildStep(LoggingBuildStep):
         # GR: taken from master, apparently not handled by base class
         if description:
             self.description = description
-        if isinstance(description, str):
+        if isinstance(description, basestring):
             self.description = [self.description]
         if descriptionDone:
             self.descriptionDone = descriptionDone
-        if isinstance(descriptionDone, str):
+        if isinstance(descriptionDone, basestring):
             self.descriptionDone = [self.descriptionDone]
         if descriptionSuffix:
             self.descriptionSuffix = descriptionSuffix
-        if isinstance(descriptionSuffix, str):
+        if isinstance(descriptionSuffix, basestring):
             self.descriptionSuffix = [self.descriptionSuffix]
 
 
@@ -68,6 +68,7 @@ class SetCapabilityProperties(DescriptionBuildStep):
             self.capability_name]
         if not cap_details:
             self.finished(SUCCESS)
+            return
 
         logs = []
         # apply build_requires, if submitted
