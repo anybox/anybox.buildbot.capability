@@ -23,3 +23,5 @@ capabilities, and produce ``BuilderConfig`` instances accordingly.
   postgresql 9.5 would be able to use the right port (5433 in the
   example above) to access the database.
 
+For more details, check the ``doc/`` subdirectory, or the `online Sphinx
+build <http://docs.anybox.fr/anybox.buildbot.capability/master>`_

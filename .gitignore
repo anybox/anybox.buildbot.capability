@@ -6,7 +6,7 @@ parts
 mirrors/
 var/
 develop-eggs
-doc/sphinx_build/
+doc/_build/
 .installed.cfg
 *.egg
 *.egg-info
