@@ -12,6 +12,9 @@ class TestSetCapabilityProperties(unittest.TestCase):
             'zecap',
             capability_version_prop='zecap_version')
 
+        def fakelog(*a):
+            self.log = a
+        self.step.addCompleteLog = fakelog
         # step.build is necessary only to be adapted to IProperties.
         # For testing, let's just provide IProperties directly
         self.step.build = Properties()
@@ -62,13 +65,15 @@ class TestSetCapabilityProperties(unittest.TestCase):
             step.getProperty(CAPABILITY_PROP_FMT % ('zecap', 'bin')),
             '/usr/bin/zecap1')
 
-    def test_cannot_choose(self):
+    def test_several_meeting_requirements(self):
         step = self.step
         step.setProperty('capability',
                          dict(zecap={'1.0': dict(bin='/usr/bin/zecap1'),
                                      '2.0': dict(bin='/usr/bin/zecap2'),
                                      },
                               ), 'BuildSlave')
-
-        # TODO for now, but we should get status=FAILURE
-        self.assertRaises(AssertionError, step.start)
+        step.setProperty('build_requires', ["zecap"])
+        step.start()
+        self.assertEqual(self.step_status, SUCCESS)
+        prop_val = step.getProperty(CAPABILITY_PROP_FMT % ('zecap', 'bin'))
+        self.assertTrue(prop_val in ('/usr/bin/zecap1', '/usr/bin/zecap2'))

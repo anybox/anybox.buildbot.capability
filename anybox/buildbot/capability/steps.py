@@ -1,6 +1,7 @@
 """Common build steps."""
+import random
 
-from buildbot.process.buildstep import BuildStep
+from buildbot.process.buildstep import LoggingBuildStep
 from buildbot.process.buildstep import SUCCESS
 from buildbot.process.buildstep import FAILURE  # NOQA
 
@@ -8,7 +9,7 @@ from .constants import CAPABILITY_PROP_FMT
 from .version import Version, VersionFilter
 
 
-class DescriptionBuildStep(BuildStep):
+class DescriptionBuildStep(LoggingBuildStep):
     """A base buildstep with description class.
 
 
@@ -17,7 +18,7 @@ class DescriptionBuildStep(BuildStep):
 
     def __init__(self, description=None, descriptionDone=None,
                  descriptionSuffix=None, **kw):
-        BuildStep.__init__(self, **kw)
+        LoggingBuildStep.__init__(self, **kw)
 
         # GR: taken from master, apparently not handled by base class
         if description:
@@ -68,6 +69,7 @@ class SetCapabilityProperties(DescriptionBuildStep):
         if not cap_details:
             self.finished(SUCCESS)
 
+        logs = []
         # apply build_requires, if submitted
         build_requires = self.getProperty(self.build_requires_prop, {})
         for req in build_requires:
@@ -81,23 +83,29 @@ class SetCapabilityProperties(DescriptionBuildStep):
         options = None
         if self.capability_version_prop:
             cap_version = self.getProperty(self.capability_version_prop)
-            if cap_version == 'not-used':
-                self.finished(SUCCESS)
-                return
-            elif cap_version is not None:
+            if cap_version is not None:
                 options = cap_details[cap_version]
 
         if options is None:
-            # could not get options by a capacity version from props
-            # works if there's only one capacity version on this worker
-            # TODO replace assert() by a FAILURE status with message
-            assert len(cap_details) == 1, (
-                "No version of capability %r in properties, but "
-                "worker %r has several applicable versions of it." % (
-                    self.capability_name, self.getProperty('workername')))
-            options = cap_details.values()[0]
+            # either we have no version property or it is not set
+            # (can happen if several versions on this worker match the
+            # requirement)
+            # this is a peculiar case, but it can happen that a build
+            # truly does not care about the version of the capability.
+            choice = random.choice(cap_details.keys())
+            logs.append("On worker %r, the following versions of capability %r "
+                        "are applicable for this build: "
+                        "%r, picking %r at random" % (
+                            self.capability_name,
+                            self.getProperty('workername'),
+                            cap_details.keys(),
+                            choice))
+            options = cap_details[choice]
 
-        for k, v in options.items():
-            self.setProperty(CAPABILITY_PROP_FMT % (self.capability_name, k),
-                             v, 'Capability')
+        for opt, value in options.items():
+            prop = CAPABILITY_PROP_FMT % (self.capability_name, opt)
+            logs.append("%s: %r" % (prop, value))
+            self.setProperty(prop, value, 'Capability')
+
+        self.addCompleteLog('property changes', "\n".join(logs))
         self.finished(SUCCESS)
