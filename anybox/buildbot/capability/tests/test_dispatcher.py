@@ -17,6 +17,7 @@ CAPABILITIES = dict(
                              'PATH': '%(cap(bin):-)s',
                              'PGCLUSTER': '%(prop:pg_version:-)s/main',
                              }),
+    without_env=dict(version_prop='wev', abbrev='we')
 )
 
 
@@ -74,6 +75,17 @@ class TestDispatcherBuildFor(DispatcherTestCase):
         builders = self.dispatch(
             build_for=[VersionFilter('postgresql', ('>', Version(9, 0)))])
         self.assertEqual(builders.keys(), ['bldr-pg9.1-devel'])
+
+    def test_build_for_unpresent(self):
+        """build_for discards workers that don't have the capability at all."""
+        self.workers.append(FakeWorker('nopg', props=dict(
+            capability={'python': {'2.7': {}}})))
+        self.make_dispatcher()
+        builders = self.dispatch(
+            build_for=[VersionFilter('postgresql', ('>', Version(9, 0)))])
+        self.assertEqual(builders.keys(), ['bldr-pg9.1-devel'])
+        self.assertEqual(builders['bldr-pg9.1-devel'].workernames,
+                         ['w90-91'])
 
     def test_build_for_range(self):
         builders = self.dispatch(
@@ -264,6 +276,12 @@ class TestDispatcherBuildRequires(DispatcherTestCase):
         self.assertEqual(builders.keys(), ['bldr-pg9.0'])
         self.assertEqual(builders['bldr-pg9.0'].workernames, ['rabb18'])
 
+    def test_build_requires_no_match(self):
+        builders = self.dispatch(
+            build_requires=[VersionFilter('rabbitmq', ('==', Version(1, 9)))],
+        )
+        self.assertEqual(builders, {})
+
     def test_build_requires_only_if(self):
         self.workers[0].properties['build-only-if-requires'] = 'private-code-access'
         builders = self.dispatch(
@@ -281,7 +299,8 @@ class TestDispatcherEnviron(DispatcherTestCase):
     def make_workers(self):
         self.workers = [
             FakeWorker('two-pg-one-py', props=dict(
-                capability={'selenium': {None: {}},  # one not having environ
+                capability={'selenium': {None: {}},  # not registered
+                            'without_env': {'1.2': {'port': '5000'}},
                             'python': {'2.6': {'bin': 'python2.6'}},
                             'postgresql': {'9.1': {'port': '5432'},
                                            '9.2': {'port': '5433'}},
@@ -291,7 +310,7 @@ class TestDispatcherEnviron(DispatcherTestCase):
     def test_capability_env(self):
         factory = util.BuildFactory()
         env = self.dispatcher.set_properties_make_environ(
-            factory, ('python', 'postgresql', 'selenium'))
+            factory, ('python', 'postgresql', 'selenium', 'without_env'))
 
         self.assertEqual(env['PGPORT'],
                          util.Interpolate('%(prop:cap_postgresql_port:-)s'))
@@ -315,3 +334,8 @@ class TestDispatcherEnviron(DispatcherTestCase):
         self.assertEquals(prop_step.args, ('postgresql',))
         self.assertEquals(prop_step.kwargs['capability_version_prop'],
                           'pg_version')
+
+        self.assertTrue('props_without_env' in steps)
+        prop_step = steps['props_without_env']
+        self.assertEquals(prop_step.args, ('without_env',))
+        self.assertEquals(prop_step.kwargs['capability_version_prop'], 'wev')
