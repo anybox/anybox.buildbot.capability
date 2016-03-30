@@ -12,6 +12,8 @@ from .constants import CAPABILITY_PROP_FMT
 RE_PROP_CAP_OPT = re.compile(r'cap\((\w*)\)')
 Interpolate = util.Interpolate
 
+_missing_cap = object()
+
 
 def does_meet_requirements(caps, requirements):
     """True if a worker capabilities fulfills all requirements.
@@ -22,8 +24,12 @@ def does_meet_requirements(caps, requirements):
     :param requirements: a :class:`VersionFilter` instance
     """
     for req in requirements:
-        version_options = caps.get(req.cap)
+        version_options = caps.get(req.cap, _missing_cap)
+        if version_options is _missing_cap:
+            return False
         if version_options is None:
+            if req.match(None):
+                continue
             return False
         for version in version_options:
             if req.match(Version.parse(version)):

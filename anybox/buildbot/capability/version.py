@@ -205,7 +205,8 @@ class VersionFilter(object):
 
         if not self.criteria:
             return True
-
+        if version is None:
+            return False
         return self.boolean_match(version, self.criteria)
 
     def __repr__(self):

@@ -211,7 +211,7 @@ class TestDispatcherBuildRequires(DispatcherTestCase):
                             'postgresql': {'8.4': {}}
                             })),
             FakeWorker('privcode-91', props=dict(
-                capability={'private-code-access': {None: {}},
+                capability={'private-code-access': None,
                             'postgresql': {'9.1-devel': {}}
                             })),
             FakeWorker('pg90-91', props=dict(
@@ -275,6 +275,15 @@ class TestDispatcherBuildRequires(DispatcherTestCase):
         )
         self.assertEqual(builders.keys(), ['bldr-pg9.0'])
         self.assertEqual(builders['bldr-pg9.0'].workernames, ['rabb18'])
+
+    def test_build_requires_None_on_worker(self):
+        self.workers.append(
+            FakeWorker('Nonewk', props=dict(
+                capability={'rabbitmq': None,
+                            'postgresql': {'9.0': {'port': 5434}}
+                            })))
+        self.make_dispatcher()
+        self.test_build_requires_2()
 
     def test_build_requires_no_match(self):
         builders = self.dispatch(
