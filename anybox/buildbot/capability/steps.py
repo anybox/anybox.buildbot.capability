@@ -97,8 +97,8 @@ class SetCapabilityProperties(DescriptionBuildStep):
             logs.append("On worker %r, the following versions of capability %r "
                         "are applicable for this build: "
                         "%r, picking %r at random" % (
-                            self.capability_name,
                             self.getProperty('workername'),
+                            self.capability_name,
                             cap_details.keys(),
                             choice))
             options = cap_details[choice]
