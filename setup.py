@@ -32,7 +32,7 @@ setup(
     description="Static capability system for buildbot",
     license="GPLv2+",
     long_description=open('README.rst').read(),
-    url="http://pypi.python.org/pypi/anybox.buildbot.odoo",
+    url="http://pypi.python.org/pypi/anybox.buildbot.capability",
     packages=find_packages(),
     zip_safe=False,
     include_package_data=True,
